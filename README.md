@@ -1,0 +1,74 @@
+# Vector Index Graph Memory
+
+This project implements the architecture from your sketch set: replace a flat vector index with one Neo4j-backed graph that preserves identity, supports POLE+O entities, stores three memory tiers, and uses a conservative deduplication gate instead of blindly merging semantically similar mentions.
+
+## What it does
+
+- Stores short-term memory as `Conversation` and `Message` nodes joined by `NEXT` edges.
+- Stores long-term memory as typed `Entity` nodes using the POLE+O top-level ontology.
+- Stores reasoning memory as `ReasoningTrace` and `ReasoningStep` nodes linked back to the triggering message and touched entities.
+- Resolves entities with exact, fuzzy, and semantic checks before deciding whether to merge, create a pending `SAME_AS`, or create a new node.
+- Retrieves context with one graph-native pull that combines message similarity, entity similarity, graph neighbors, and provenance.
+
+## Why this fixes the vector-index problem
+
+A plain vector index gives you fuzzy recall but no stable notion of identity. This prototype keeps embeddings, aliases, and relationships on the same graph node. That lets the system answer questions like "is this the same Karpathy I saw yesterday?" without collapsing every near match into a single record.
+
+The project follows the mental model from the OCR-extracted sketches and the referenced Neo4j agent-memory architecture:
+
+- 1 graph
+- 3 memory tiers
+- POLE+O entity types
+- typed cross-tier edges
+- exact/fuzzy/semantic resolution
+- `>= 0.95` auto-merge, `0.85 - 0.95` pending `SAME_AS`, `< 0.85` create new
+
+## Quick start
+
+1. Start Neo4j:
+
+```bash
+docker compose up -d
+```
+
+1. Create a virtual environment and install the app:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[dev]
+```
+
+1. Run the API:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+1. Open the docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## Main endpoints
+
+- `POST /api/documents` ingests a note or document, extracts entities, applies the dedup gate, and writes graph structure.
+- `POST /api/chat` stores a user message in short-term memory and returns fused context.
+- `POST /api/duplicates/review` confirms or rejects pending `SAME_AS` links.
+- `GET /api/stats` returns graph counts and duplicate-review backlog.
+- `GET /api/health` reports service and Neo4j connectivity.
+
+## Testing
+
+Unit tests do not require Neo4j.
+
+```bash
+pytest
+```
+
+## Notes
+
+- The embedding model is deterministic and local. It hashes tokens into a fixed-size vector so the project works without external APIs.
+- The extractor is intentionally lightweight. It demonstrates the ladder concept from the sketches without forcing large model downloads.
+- End-to-end writes require a running Neo4j 5.x instance with vector index support.
