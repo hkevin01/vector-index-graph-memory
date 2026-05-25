@@ -35,11 +35,11 @@ In this repository, identity lives in the graph and similarity remains a signal.
 
 | # | Decision Area | Chosen Approach | Typical Alternative | Why The Choice Helps Here |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Primary memory store</sub> | <sub>Neo4j graph with vector indexes</sub> | <sub>Standalone vector database</sub> | <sub>Keeps identity, relationships, and embeddings on the same node set.</sub> |
-| <sub>2</sub> | <sub>Entity identity</sub> | <sub>Explicit node identity with merge gate</sub> | <sub>Similarity-only matching</sub> | <sub>Reduces accidental collapse of near matches into one memory.</sub> |
-| <sub>3</sub> | <sub>Reasoning retention</sub> | <sub>Reasoning traces in the graph</sub> | <sub>Prompt-only transient chain of thought</sub> | <sub>Preserves provenance about how context was assembled.</sub> |
-| <sub>4</sub> | <sub>Retrieval model</sub> | <sub>Hybrid graph plus vector retrieval</sub> | <sub>Top-k embedding recall only</sub> | <sub>Combines semantic recall with neighborhood expansion and provenance.</sub> |
-| <sub>5</sub> | <sub>Dedup behavior</sub> | <sub>Merge, pending review, or create</sub> | <sub>Always merge when similar enough</sub> | <sub>Adds a safety band for ambiguous cases.</sub> |
+| 1 | Primary memory store | Neo4j graph with vector indexes | Standalone vector database | Keeps identity, relationships, and embeddings on the same node set. |
+| 2 | Entity identity | Explicit node identity with merge gate | Similarity-only matching | Reduces accidental collapse of near matches into one memory. |
+| 3 | Reasoning retention | Reasoning traces in the graph | Prompt-only transient chain of thought | Preserves provenance about how context was assembled. |
+| 4 | Retrieval model | Hybrid graph plus vector retrieval | Top-k embedding recall only | Combines semantic recall with neighborhood expansion and provenance. |
+| 5 | Dedup behavior | Merge, pending review, or create | Always merge when similar enough | Adds a safety band for ambiguous cases. |
 
 The table above explains the problem framing. It shows that the repository is not trying to beat vector search at pure recall quality; it is trying to keep memory usable over time by separating identity management from similarity scoring.
 
@@ -54,11 +54,11 @@ At a high level, the service ingests text, extracts candidate entities and relat
 
 | # | Capability | What It Does | Why It Is Needed |
 | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Document ingest</sub> | <sub>Stores a message, extracts entities, resolves duplicates, and writes relationships.</sub> | <sub>Turns raw notes into structured graph memory.</sub> |
-| <sub>2</sub> | <sub>Chat context retrieval</sub> | <sub>Stores a user message and returns message hits, entity hits, and related reasoning.</sub> | <sub>Lets a downstream assistant retrieve grounded context.</sub> |
-| <sub>3</sub> | <sub>Duplicate review</sub> | <sub>Confirms or rejects pending SAME_AS links.</sub> | <sub>Provides a human checkpoint for ambiguous identity cases.</sub> |
-| <sub>4</sub> | <sub>Health reporting</sub> | <sub>Checks whether Neo4j is reachable.</sub> | <sub>Separates service availability from storage connectivity.</sub> |
-| <sub>5</sub> | <sub>Graph statistics</sub> | <sub>Returns counts for conversations, messages, entities, traces, and pending duplicates.</sub> | <sub>Gives a fast operational snapshot of memory growth.</sub> |
+| 1 | Document ingest | Stores a message, extracts entities, resolves duplicates, and writes relationships. | Turns raw notes into structured graph memory. |
+| 2 | Chat context retrieval | Stores a user message and returns message hits, entity hits, and related reasoning. | Lets a downstream assistant retrieve grounded context. |
+| 3 | Duplicate review | Confirms or rejects pending SAME_AS links. | Provides a human checkpoint for ambiguous identity cases. |
+| 4 | Health reporting | Checks whether Neo4j is reachable. | Separates service availability from storage connectivity. |
+| 5 | Graph statistics | Returns counts for conversations, messages, entities, traces, and pending duplicates. | Gives a fast operational snapshot of memory growth. |
 
 The table above describes the runtime surface of the prototype. It is useful as a mental map before reading the API section because it connects the implementation to the memory lifecycle rather than just listing routes.
 
@@ -70,10 +70,10 @@ The graph model was chosen because memory is not only about finding similar chun
 
 | # | Option | Strengths | Weaknesses | Why It Was Not The Primary Choice |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Standalone vector database</sub> | <sub>Fast semantic recall and operational simplicity.</sub> | <sub>Poor native identity modeling and relationship semantics.</sub> | <sub>The project goal is identity-preserving memory, not only nearest-neighbor search.</sub> |
-| <sub>2</sub> | <sub>Relational schema</sub> | <sub>Strong constraints, familiar tooling, and transactional safety.</sub> | <sub>Relationship-heavy traversals and heterogeneous entity typing become awkward.</sub> | <sub>The graph shape is the main abstraction, not tabular normalization.</sub> |
-| <sub>3</sub> | <sub>In-memory object graph</sub> | <sub>Simple to prototype and fast locally.</sub> | <sub>No durable shared persistence or vector index integration.</sub> | <sub>The repository is meant to persist memory across requests.</sub> |
-| <sub>4</sub> | <sub>Neo4j graph with vector indexes</sub> | <sub>Unifies embeddings, identity, edges, and traversal in one store.</sub> | <sub>Adds operational complexity compared with a single-purpose store.</sub> | <sub>This is the best fit for the architecture being demonstrated.</sub> |
+| 1 | Standalone vector database | Fast semantic recall and operational simplicity. | Poor native identity modeling and relationship semantics. | The project goal is identity-preserving memory, not only nearest-neighbor search. |
+| 2 | Relational schema | Strong constraints, familiar tooling, and transactional safety. | Relationship-heavy traversals and heterogeneous entity typing become awkward. | The graph shape is the main abstraction, not tabular normalization. |
+| 3 | In-memory object graph | Simple to prototype and fast locally. | No durable shared persistence or vector index integration. | The repository is meant to persist memory across requests. |
+| 4 | Neo4j graph with vector indexes | Unifies embeddings, identity, edges, and traversal in one store. | Adds operational complexity compared with a single-purpose store. | This is the best fit for the architecture being demonstrated. |
 
 The table above is a tradeoff table, not a benchmark claim. Its purpose is to show that the graph choice is motivated by data shape and identity requirements, not by the idea that a graph is universally better than every other persistence layer.
 
@@ -86,12 +86,12 @@ This section is important because architecture discussions are often too abstrac
 
 | # | Layer | Technology | Why It Was Chosen | Practical Consequence |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>API layer</sub> | <sub>FastAPI</sub> | <sub>Provides typed request models, automatic OpenAPI docs, and simple dependency wiring.</sub> | <sub>You get interactive docs at `/docs` with minimal boilerplate.</sub> |
-| <sub>2</sub> | <sub>Data validation</sub> | <sub>Pydantic</sub> | <sub>Keeps API contracts explicit and easy to inspect.</sub> | <sub>Request and response shapes are self-documenting and testable.</sub> |
-| <sub>3</sub> | <sub>Graph store</sub> | <sub>Neo4j 5.x</sub> | <sub>Supports both graph traversal and vector index queries in the same database.</sub> | <sub>The system can mix semantic search with neighborhood expansion.</sub> |
-| <sub>4</sub> | <sub>Embedding service</sub> | <sub>Local deterministic hash embedding</sub> | <sub>Removes external API cost and makes tests deterministic.</sub> | <sub>Semantic quality is lower than modern embedding models, but reproducibility is high.</sub> |
-| <sub>5</sub> | <sub>Extraction strategy</sub> | <sub>Regex and heuristic extraction</sub> | <sub>Keeps the prototype easy to run and inspect.</sub> | <sub>Coverage is intentionally limited and should be treated as a scaffold.</sub> |
-| <sub>6</sub> | <sub>Test stack</sub> | <sub>Pytest plus FastAPI TestClient</sub> | <sub>Supports narrow, deterministic tests without requiring Neo4j.</sub> | <sub>Core behavior can be validated locally before doing full end-to-end runs.</sub> |
+| 1 | API layer | FastAPI | Provides typed request models, automatic OpenAPI docs, and simple dependency wiring. | You get interactive docs at `/docs` with minimal boilerplate. |
+| 2 | Data validation | Pydantic | Keeps API contracts explicit and easy to inspect. | Request and response shapes are self-documenting and testable. |
+| 3 | Graph store | Neo4j 5.x | Supports both graph traversal and vector index queries in the same database. | The system can mix semantic search with neighborhood expansion. |
+| 4 | Embedding service | Local deterministic hash embedding | Removes external API cost and makes tests deterministic. | Semantic quality is lower than modern embedding models, but reproducibility is high. |
+| 5 | Extraction strategy | Regex and heuristic extraction | Keeps the prototype easy to run and inspect. | Coverage is intentionally limited and should be treated as a scaffold. |
+| 6 | Test stack | Pytest plus FastAPI TestClient | Supports narrow, deterministic tests without requiring Neo4j. | Core behavior can be validated locally before doing full end-to-end runs. |
 
 The table above explains the chosen stack in practical terms. It is useful because each technology serves the prototype goal differently: FastAPI improves interface clarity, Neo4j supports the data model, and the local embedding service keeps the repository runnable without third-party services.
 
@@ -101,53 +101,53 @@ This section is important because the value of the project comes from how the pi
 
 ```mermaid
 flowchart TD
-		A[Client] --> B[FastAPI Routes]
-		B --> C[MemoryService]
-		C --> D[HashEmbeddingService]
-		C --> E[ExtractionService]
-		C --> F[ResolutionService]
-		C --> G[GraphRepository]
-		G --> H[(Neo4j)]
-		H --> I[Conversation and Message nodes]
-		H --> J[Entity nodes and RELATED_TO edges]
-		H --> K[ReasoningTrace and ReasoningStep nodes]
+    A[Client] --> B[FastAPI Routes]
+    B --> C[MemoryService]
+    C --> D[HashEmbeddingService]
+    C --> E[ExtractionService]
+    C --> F[ResolutionService]
+    C --> G[GraphRepository]
+    G --> H[(Neo4j)]
+    H --> I[Conversation and Message nodes]
+    H --> J[Entity nodes and RELATED_TO edges]
+    H --> K[ReasoningTrace and ReasoningStep nodes]
 ```
 
 The diagram above explains the ownership boundaries. It shows that `MemoryService` is the orchestration layer, while the repository owns persistence, the embedding service owns vector generation, the extraction service owns candidate generation, and the resolution service owns merge decisions.
 
 ```mermaid
 sequenceDiagram
-		participant U as User
-		participant A as API
-		participant M as MemoryService
-		participant X as ExtractionService
-		participant R as ResolutionService
-		participant G as GraphRepository
-		participant N as Neo4j
+    participant U as User
+    participant A as API
+    participant M as MemoryService
+    participant X as ExtractionService
+    participant R as ResolutionService
+    participant G as GraphRepository
+    participant N as Neo4j
 
-		U->>A: POST /api/documents
-		A->>M: ingest_document(request)
-		M->>G: ensure_schema()
-		M->>G: create_message(...)
-		M->>X: extract(content)
-		X-->>M: entities, relations
-		loop each entity
-				M->>G: find_existing_entities(type)
-				M->>R: decide(candidate, existing)
-				alt merge
-						M->>G: merge_entity(...)
-				else pending
-						M->>G: create_entity(...)
-						M->>G: create_pending_same_as(...)
-				else create
-						M->>G: create_entity(...)
-				end
-		end
-		M->>G: connect_message_mentions(...)
-		M->>G: connect_entities(...)
-		G->>N: persist graph updates
-		M-->>A: IngestResult
-		A-->>U: JSON response
+    U->>A: POST /api/documents
+    A->>M: ingest_document(request)
+    M->>G: ensure_schema()
+    M->>G: create_message(...)
+    M->>X: extract(content)
+    X-->>M: entities, relations
+    loop each entity
+        M->>G: find_existing_entities(type)
+        M->>R: decide(candidate, existing)
+        alt merge
+            M->>G: merge_entity(...)
+        else pending
+            M->>G: create_entity(...)
+            M->>G: create_pending_same_as(...)
+        else create
+            M->>G: create_entity(...)
+        end
+    end
+    M->>G: connect_message_mentions(...)
+    M->>G: connect_entities(...)
+    G->>N: persist graph updates
+    M-->>A: IngestResult
+    A-->>U: JSON response
 ```
 
 The sequence diagram above shows why the architecture is split into services instead of keeping everything in the route layer. It makes it easier to reason about which code decides, which code persists, and which code only transforms data.
@@ -158,23 +158,23 @@ This section matters because the repository deliberately separates memory into t
 
 | # | Tier | Main Node Types | Role In The System | Why It Is Separate |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Short-term memory</sub> | <sub>`Conversation`, `Message`</sub> | <sub>Stores session-scoped interaction history.</sub> | <sub>Conversation flow is temporal and should stay distinct from long-lived entity identity.</sub> |
-| <sub>2</sub> | <sub>Long-term memory</sub> | <sub>`Entity` plus typed labels</sub> | <sub>Stores canonicalized knowledge about people, objects, locations, events, and organizations.</sub> | <sub>Entity identity persists across conversations.</sub> |
-| <sub>3</sub> | <sub>Reasoning memory</sub> | <sub>`ReasoningTrace`, `ReasoningStep`</sub> | <sub>Records that a retrieval path was executed and which entities it touched.</sub> | <sub>Provenance and inspection should not be mixed into entity state.</sub> |
+| 1 | Short-term memory | `Conversation`, `Message` | Stores session-scoped interaction history. | Conversation flow is temporal and should stay distinct from long-lived entity identity. |
+| 2 | Long-term memory | `Entity` plus typed labels | Stores canonicalized knowledge about people, objects, locations, events, and organizations. | Entity identity persists across conversations. |
+| 3 | Reasoning memory | `ReasoningTrace`, `ReasoningStep` | Records that a retrieval path was executed and which entities it touched. | Provenance and inspection should not be mixed into entity state. |
 
 The table above explains the conceptual separation of memory. It is useful because it shows that the architecture is not just storing more nodes; it is assigning different responsibilities to different node families.
 
 ```mermaid
 graph LR
-		C[Conversation] -->|HAS_MESSAGE| M1[Message]
-		M1 -->|NEXT| M2[Message]
-		M2 -->|MENTIONS| E1[Entity: Person]
-		M2 -->|MENTIONS| E2[Entity: Object]
-		E1 -->|RELATED_TO| E2
-		T[ReasoningTrace] -->|INITIATED_BY| M2
-		T -->|HAS_STEP| S[ReasoningStep]
-		T -->|TOUCHED| E1
-		T -->|TOUCHED| E2
+    C[Conversation] -->|HAS_MESSAGE| M1[Message]
+    M1 -->|NEXT| M2[Message]
+    M2 -->|MENTIONS| E1[Entity: Person]
+    M2 -->|MENTIONS| E2[Entity: Object]
+    E1 -->|RELATED_TO| E2
+    T[ReasoningTrace] -->|INITIATED_BY| M2
+    T -->|HAS_STEP| S[ReasoningStep]
+    T -->|TOUCHED| E1
+    T -->|TOUCHED| E2
 ```
 
 The graph above illustrates the memory tier boundaries with actual edge names used by the code. Its purpose is to make the storage shape concrete before you look at Cypher behavior or API outputs.
@@ -191,10 +191,10 @@ For each extracted entity candidate, the service looks up existing entities of t
 
 | # | Signal | Source | What It Captures | Why It Matters |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Exact match</sub> | <sub>Name and aliases compared case-insensitively</sub> | <sub>Literal identity agreement.</sub> | <sub>Prevents needless duplicate nodes when names already match exactly.</sub> |
-| <sub>2</sub> | <sub>Fuzzy match</sub> | <sub>`difflib.SequenceMatcher` ratio</sub> | <sub>Surface-form similarity.</sub> | <sub>Handles spelling variation and minor formatting changes.</sub> |
-| <sub>3</sub> | <sub>Semantic match</sub> | <sub>Cosine similarity over deterministic embeddings</sub> | <sub>Contextual resemblance.</sub> | <sub>Provides recall when exact strings differ.</sub> |
-| <sub>4</sub> | <sub>Type filter</sub> | <sub>Same `entity_type` only</sub> | <sub>Coarse ontology guardrail.</sub> | <sub>Reduces bad comparisons across incompatible categories.</sub> |
+| 1 | Exact match | Name and aliases compared case-insensitively | Literal identity agreement. | Prevents needless duplicate nodes when names already match exactly. |
+| 2 | Fuzzy match | `difflib.SequenceMatcher` ratio | Surface-form similarity. | Handles spelling variation and minor formatting changes. |
+| 3 | Semantic match | Cosine similarity over deterministic embeddings | Contextual resemblance. | Provides recall when exact strings differ. |
+| 4 | Type filter | Same `entity_type` only | Coarse ontology guardrail. | Reduces bad comparisons across incompatible categories. |
 
 The table above explains the scoring ingredients. Its purpose is to show that the repository does not rely on any single signal; instead, it layers simple signals that are easy to inspect and test.
 
@@ -213,24 +213,24 @@ $$
 The decision thresholds are:
 
 $$
-	ext{merge if } score \ge 0.95
+merge\ if\ score \ge 0.95
 $$
 
 $$
-	ext{pending review if } 0.85 \le score < 0.95
+pending\ review\ if\ 0.85 \le score < 0.95
 $$
 
 $$
-	ext{create new if } score < 0.85
+create\ new\ if\ score < 0.85
 $$
 
 These formulas matter because they define the safety posture of the system. The purpose of writing them explicitly is to make the merge policy auditable instead of hiding it inside implementation details.
 
 | # | Score Band | Action | Why This Policy Exists |
 | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>`score >= 0.95`</sub> | <sub>Automatic merge</sub> | <sub>Only very strong matches are collapsed into one canonical node.</sub> |
-| <sub>2</sub> | <sub>`0.85 <= score < 0.95`</sub> | <sub>Create pending `SAME_AS`</sub> | <sub>Ambiguous matches remain reviewable instead of silently merged.</sub> |
-| <sub>3</sub> | <sub>`score < 0.85`</sub> | <sub>Create new entity</sub> | <sub>Protects memory from identity drift when evidence is weak.</sub> |
+| 1 | `score >= 0.95` | Automatic merge | Only very strong matches are collapsed into one canonical node. |
+| 2 | `0.85 <= score < 0.95` | Create pending `SAME_AS` | Ambiguous matches remain reviewable instead of silently merged. |
+| 3 | `score < 0.85` | Create new entity | Protects memory from identity drift when evidence is weak. |
 
 The table above is the operational policy table. It explains how the numeric scores map to graph writes and why the ambiguous middle band exists at all.
 
@@ -245,19 +245,19 @@ At chat time, the repository stores the current user message, queries the messag
 
 | # | Retrieval Step | Where It Runs | What It Returns | Why It Is Useful |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Message vector search</sub> | <sub>Neo4j `message_embedding_index`</sub> | <sub>Relevant messages from the same session.</sub> | <sub>Keeps short-term recall tied to the active conversation.</sub> |
-| <sub>2</sub> | <sub>Entity vector search</sub> | <sub>Neo4j `entity_embedding_index`</sub> | <sub>Relevant entity nodes with scores.</sub> | <sub>Pulls long-term memory into the response.</sub> |
-| <sub>3</sub> | <sub>Neighbor expansion</sub> | <sub>`RELATED_TO` traversal</sub> | <sub>Nearby entities attached to the hit set.</sub> | <sub>Brings structure into the returned context, not only similarity.</sub> |
-| <sub>4</sub> | <sub>Reasoning trace lookup</sub> | <sub>`ReasoningTrace` to `Entity` links</sub> | <sub>Prior retrieval queries that touched similar entities.</sub> | <sub>Adds provenance and historical context.</sub> |
+| 1 | Message vector search | Neo4j `message_embedding_index` | Relevant messages from the same session. | Keeps short-term recall tied to the active conversation. |
+| 2 | Entity vector search | Neo4j `entity_embedding_index` | Relevant entity nodes with scores. | Pulls long-term memory into the response. |
+| 3 | Neighbor expansion | `RELATED_TO` traversal | Nearby entities attached to the hit set. | Brings structure into the returned context, not only similarity. |
+| 4 | Reasoning trace lookup | `ReasoningTrace` to `Entity` links | Prior retrieval queries that touched similar entities. | Adds provenance and historical context. |
 
 The table above describes the retrieval assembly pipeline. Its purpose is to explain why the response includes multiple kinds of context instead of a single ranked list of chunks.
 
 | # | Retrieval Style | Strength | Limitation | Why The Hybrid Design Was Chosen |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Keyword-only</sub> | <sub>Simple and transparent.</sub> | <sub>Misses paraphrases and latent similarity.</sub> | <sub>Not enough for semantic memory recall.</sub> |
-| <sub>2</sub> | <sub>Vector-only</sub> | <sub>Strong fuzzy recall.</sub> | <sub>No native notion of identity or structured neighborhood.</sub> | <sub>Too weak for multi-hop memory explanation.</sub> |
-| <sub>3</sub> | <sub>Graph-only traversal</sub> | <sub>Strong structural explainability.</sub> | <sub>Needs an entry point and struggles with semantic ambiguity.</sub> | <sub>Better as a companion to embedding search.</sub> |
-| <sub>4</sub> | <sub>Hybrid graph plus vector</sub> | <sub>Combines semantic entry points with relationship expansion.</sub> | <sub>Operationally more complex.</sub> | <sub>Matches the goals of memory retrieval in this prototype.</sub> |
+| 1 | Keyword-only | Simple and transparent. | Misses paraphrases and latent similarity. | Not enough for semantic memory recall. |
+| 2 | Vector-only | Strong fuzzy recall. | No native notion of identity or structured neighborhood. | Too weak for multi-hop memory explanation. |
+| 3 | Graph-only traversal | Strong structural explainability. | Needs an entry point and struggles with semantic ambiguity. | Better as a companion to embedding search. |
+| 4 | Hybrid graph plus vector | Combines semantic entry points with relationship expansion. | Operationally more complex. | Matches the goals of memory retrieval in this prototype. |
 
 The table above is a retrieval tradeoff table. It exists to explain why the repository mixes retrieval modes instead of replacing one with another.
 
@@ -267,13 +267,13 @@ This section matters because architecture is easier to trust when the code layou
 
 | # | Path | Role | Why The Separation Helps |
 | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>`app/main.py`</sub> | <sub>Application assembly and dependency wiring.</sub> | <sub>Keeps startup concerns separate from route logic.</sub> |
-| <sub>2</sub> | <sub>`app/routes/`</sub> | <sub>HTTP route definitions.</sub> | <sub>Makes API behavior easy to inspect and test.</sub> |
-| <sub>3</sub> | <sub>`app/services/`</sub> | <sub>Embedding, extraction, memory orchestration, and resolution logic.</sub> | <sub>Encapsulates behavior that should not live in routes or repositories.</sub> |
-| <sub>4</sub> | <sub>`app/repositories/`</sub> | <sub>Neo4j schema, writes, and retrieval queries.</sub> | <sub>Localizes Cypher and persistence details.</sub> |
-| <sub>5</sub> | <sub>`app/models/`</sub> | <sub>Pydantic schemas and typed payloads.</sub> | <sub>Makes the API contract explicit.</sub> |
-| <sub>6</sub> | <sub>`tests/`</sub> | <sub>Unit and API tests.</sub> | <sub>Supports narrow validation without external services.</sub> |
-| <sub>7</sub> | <sub>`docs/`</sub> | <sub>Supplemental architecture notes.</sub> | <sub>Keeps reference documentation separate from the main entry point.</sub> |
+| 1 | `app/main.py` | Application assembly and dependency wiring. | Keeps startup concerns separate from route logic. |
+| 2 | `app/routes/` | HTTP route definitions. | Makes API behavior easy to inspect and test. |
+| 3 | `app/services/` | Embedding, extraction, memory orchestration, and resolution logic. | Encapsulates behavior that should not live in routes or repositories. |
+| 4 | `app/repositories/` | Neo4j schema, writes, and retrieval queries. | Localizes Cypher and persistence details. |
+| 5 | `app/models/` | Pydantic schemas and typed payloads. | Makes the API contract explicit. |
+| 6 | `tests/` | Unit and API tests. | Supports narrow validation without external services. |
+| 7 | `docs/` | Supplemental architecture notes. | Keeps reference documentation separate from the main entry point. |
 
 The table above is a structure map. Its purpose is to help a new reader decide where to look next depending on whether they care about HTTP contracts, graph persistence, or scoring logic.
 
@@ -314,10 +314,10 @@ http://127.0.0.1:8000/docs
 
 | # | Runtime Dependency | Why It Is Needed | Default Local Source |
 | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Python 3.12+</sub> | <sub>Required by the project metadata and typing used in the codebase.</sub> | <sub>System Python or virtual environment.</sub> |
-| <sub>2</sub> | <sub>Docker or compatible container runtime</sub> | <sub>Runs Neo4j locally with the configured ports.</sub> | <sub>`docker compose` using the repository file.</sub> |
-| <sub>3</sub> | <sub>Neo4j 5.x</sub> | <sub>Provides graph persistence and vector index support.</sub> | <sub>`neo4j:5.26` from `docker-compose.yml`.</sub> |
-| <sub>4</sub> | <sub>Virtual environment</sub> | <sub>Isolates app and test dependencies.</sub> | <sub>Local `.venv` directory.</sub> |
+| 1 | Python 3.12+ | Required by the project metadata and typing used in the codebase. | System Python or virtual environment. |
+| 2 | Docker or compatible container runtime | Runs Neo4j locally with the configured ports. | `docker compose` using the repository file. |
+| 3 | Neo4j 5.x | Provides graph persistence and vector index support. | `neo4j:5.26` from `docker-compose.yml`. |
+| 4 | Virtual environment | Isolates app and test dependencies. | Local `.venv` directory. |
 
 The table above summarizes the runtime prerequisites. Its purpose is to separate environmental requirements from the application steps so it is easier to troubleshoot startup issues.
 
@@ -332,17 +332,16 @@ The application loads runtime configuration from environment variables with safe
 
 | # | Variable | Default | What It Controls | Why You Might Change It |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>`NEO4J_URI`</sub> | <sub>`bolt://localhost:7687`</sub> | <sub>Neo4j connection endpoint.</sub> | <sub>Point to a different local or remote graph instance.</sub> |
-| <sub>2</sub> | <sub>`NEO4J_USERNAME`</sub> | <sub>`neo4j`</sub> | <sub>Database username.</sub> | <sub>Match your local or hosted Neo4j credentials.</sub> |
-| <sub>3</sub> | <sub>`NEO4J_PASSWORD`</sub> | <sub>`change-this-password`</sub> | <sub>Database password.</sub> | <sub>Align with the container or deployment secret.</sub> |
-| <sub>4</sub> | <sub>`MEMORY_EMBEDDING_DIMENSIONS`</sub> | <sub>`256`</sub> | <sub>Length of generated vectors.</sub> | <sub>Experiment with storage size versus representational granularity.</sub> |
-| <sub>5</sub> | <sub>`AUTO_MERGE_THRESHOLD`</sub> | <sub>`0.95`</sub> | <sub>Boundary for automatic merges.</sub> | <sub>Adjust conservatism of identity resolution.</sub> |
-| <sub>6</sub> | <sub>`PENDING_MATCH_THRESHOLD`</sub> | <sub>`0.85`</sub> | <sub>Boundary for pending duplicate review.</sub> | <sub>Control how many ambiguous matches require manual confirmation.</sub> |
+| 1 | `NEO4J_URI` | `bolt://localhost:7687` | Neo4j connection endpoint. | Point to a different local or remote graph instance. |
+| 2 | `NEO4J_USERNAME` | `neo4j` | Database username. | Match your local or hosted Neo4j credentials. |
+| 3 | `NEO4J_PASSWORD` | `change-this-password` | Database password. | Align with the container or deployment secret. |
+| 4 | `MEMORY_EMBEDDING_DIMENSIONS` | `256` | Length of generated vectors. | Experiment with storage size versus representational granularity. |
+| 5 | `AUTO_MERGE_THRESHOLD` | `0.95` | Boundary for automatic merges. | Adjust conservatism of identity resolution. |
+| 6 | `PENDING_MATCH_THRESHOLD` | `0.85` | Boundary for pending duplicate review. | Control how many ambiguous matches require manual confirmation. |
 
 The table above documents the configuration surface defined in the code. Its purpose is to connect each variable to a behavioral effect instead of listing environment names without context.
 
-<details>
-<summary>Example local environment file</summary>
+Example local environment file:
 
 ```env
 NEO4J_URI=bolt://localhost:7687
@@ -353,9 +352,7 @@ AUTO_MERGE_THRESHOLD=0.95
 PENDING_MATCH_THRESHOLD=0.85
 ```
 
-</details>
-
-The collapsed section above is useful because it keeps setup details available without crowding the main flow for readers who only need the high-level defaults.
+The example above makes the default environment explicit so local setup can be reproduced without opening the settings code.
 
 ## API Surface
 
@@ -363,54 +360,48 @@ This section is important because the README should explain the public contract,
 
 | # | Method | Path | Purpose | Main Response |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>`GET`</sub> | <sub>`/api/health`</sub> | <sub>Checks service and Neo4j connectivity.</sub> | <sub>Status and Neo4j reachability.</sub> |
-| <sub>2</sub> | <sub>`POST`</sub> | <sub>`/api/documents`</sub> | <sub>Ingests a note, extracts entities, resolves duplicates, and writes graph memory.</sub> | <sub>`IngestResult` with counts and resolution decisions.</sub> |
-| <sub>3</sub> | <sub>`POST`</sub> | <sub>`/api/chat`</sub> | <sub>Stores a user message and returns hybrid context.</sub> | <sub>`ContextResponse` with messages, entities, and reasoning.</sub> |
-| <sub>4</sub> | <sub>`POST`</sub> | <sub>`/api/duplicates/review`</sub> | <sub>Confirms or rejects a pending duplicate relationship.</sub> | <sub>Simple status payload.</sub> |
-| <sub>5</sub> | <sub>`GET`</sub> | <sub>`/api/stats`</sub> | <sub>Returns counts for the current graph state.</sub> | <sub>`StatsResponse` with counts and a timestamp.</sub> |
+| 1 | `GET` | `/api/health` | Checks service and Neo4j connectivity. | Status and Neo4j reachability. |
+| 2 | `POST` | `/api/documents` | Ingests a note, extracts entities, resolves duplicates, and writes graph memory. | `IngestResult` with counts and resolution decisions. |
+| 3 | `POST` | `/api/chat` | Stores a user message and returns hybrid context. | `ContextResponse` with messages, entities, and reasoning. |
+| 4 | `POST` | `/api/duplicates/review` | Confirms or rejects a pending duplicate relationship. | Simple status payload. |
+| 5 | `GET` | `/api/stats` | Returns counts for the current graph state. | `StatsResponse` with counts and a timestamp. |
 
 The table above gives the route-level contract. Its purpose is to orient someone who wants to integrate with the service without reading the route code first.
 
 | # | Request Model | Key Fields | Why They Exist |
 | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>`DocumentIngestRequest`</sub> | <sub>`content`, `source`, `session_id`</sub> | <sub>Provides text to ingest, a human-readable source label, and session scoping.</sub> |
-| <sub>2</sub> | <sub>`ChatRequest`</sub> | <sub>`message`, `session_id`</sub> | <sub>Captures the active message and the session that bounds message retrieval.</sub> |
-| <sub>3</sub> | <sub>`DuplicateReviewRequest`</sub> | <sub>`left_id`, `right_id`, `confirm`, `reviewer`</sub> | <sub>Lets a reviewer confirm or reject ambiguous identity links.</sub> |
-| <sub>4</sub> | <sub>`ContextResponse`</sub> | <sub>`message_hits`, `entities`, `reasoning`</sub> | <sub>Returns the hybrid context assembled from multiple memory tiers.</sub> |
-| <sub>5</sub> | <sub>`IngestResult`</sub> | <sub>`entity_count`, `relation_count`, `resolutions`</sub> | <sub>Shows how much structure was derived from an ingest operation.</sub> |
+| 1 | `DocumentIngestRequest` | `content`, `source`, `session_id` | Provides text to ingest, a human-readable source label, and session scoping. |
+| 2 | `ChatRequest` | `message`, `session_id` | Captures the active message and the session that bounds message retrieval. |
+| 3 | `DuplicateReviewRequest` | `left_id`, `right_id`, `confirm`, `reviewer` | Lets a reviewer confirm or reject ambiguous identity links. |
+| 4 | `ContextResponse` | `message_hits`, `entities`, `reasoning` | Returns the hybrid context assembled from multiple memory tiers. |
+| 5 | `IngestResult` | `entity_count`, `relation_count`, `resolutions` | Shows how much structure was derived from an ingest operation. |
 
 The table above summarizes the main Pydantic models used at the API boundary. It is helpful because it describes what the service considers important enough to make explicit in the contract.
 
-<details>
-<summary>Example document ingest request</summary>
+Example document ingest request:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/documents \
-	-H "Content-Type: application/json" \
-	-d '{
-		"content": "Anthropic developed Claude Code. Claude Code competes with Codex.",
-		"source": "example-note",
-		"session_id": "demo"
-	}'
+-H "Content-Type: application/json" \
+-d '{
+  "content": "Anthropic developed Claude Code. Claude Code competes with Codex.",
+  "source": "example-note",
+  "session_id": "demo"
+}'
 ```
 
-</details>
-
-<details>
-<summary>Example chat request</summary>
+Example chat request:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/chat \
-	-H "Content-Type: application/json" \
-	-d '{
-		"message": "What do we know about Claude Code?",
-		"session_id": "demo"
-	}'
+-H "Content-Type: application/json" \
+-d '{
+  "message": "What do we know about Claude Code?",
+  "session_id": "demo"
+}'
 ```
 
-</details>
-
-The example blocks above are collapsed because they are useful when testing the API manually, but they are not required reading for someone who only wants the architecture overview.
+The example blocks above make the API concrete and are meant to reduce the gap between the route descriptions and an actual manual test flow.
 
 ## Example Workflows
 
@@ -430,9 +421,9 @@ When a pending duplicate is confirmed, the left entity absorbs aliases and possi
 
 | # | Workflow | Main Services Involved | Why This Flow Exists |
 | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Document ingest</sub> | <sub>`MemoryService`, `ExtractionService`, `ResolutionService`, `GraphRepository`</sub> | <sub>Converts raw text into durable structured memory.</sub> |
-| <sub>2</sub> | <sub>Chat retrieval</sub> | <sub>`MemoryService`, `HashEmbeddingService`, `GraphRepository`</sub> | <sub>Builds a response context that mixes session memory and long-term memory.</sub> |
-| <sub>3</sub> | <sub>Duplicate review</sub> | <sub>`GraphRepository`</sub> | <sub>Keeps ambiguous identity decisions reversible and auditable.</sub> |
+| 1 | Document ingest | `MemoryService`, `ExtractionService`, `ResolutionService`, `GraphRepository` | Converts raw text into durable structured memory. |
+| 2 | Chat retrieval | `MemoryService`, `HashEmbeddingService`, `GraphRepository` | Builds a response context that mixes session memory and long-term memory. |
+| 3 | Duplicate review | `GraphRepository` | Keeps ambiguous identity decisions reversible and auditable. |
 
 The table above acts as a workflow index. Its purpose is to show which subsystems matter in which user-facing operation.
 
@@ -442,10 +433,10 @@ This section matters because a memory architecture can sound reasonable while st
 
 | # | Test Area | What Is Verified | Why It Matters |
 | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Embedding service</sub> | <sub>Embedding generation is deterministic and similarity prefers related text.</sub> | <sub>Provides stable behavior for scoring and retrieval.</sub> |
-| <sub>2</sub> | <sub>Extraction service</sub> | <sub>Entity and relation extraction detects expected names and links.</sub> | <sub>Confirms the structured ingest path works at a basic level.</sub> |
-| <sub>3</sub> | <sub>API health route</sub> | <sub>Health endpoint reflects repository connectivity behavior.</sub> | <sub>Prevents drift between the API contract and repository usage.</sub> |
-| <sub>4</sub> | <sub>API stats route</sub> | <sub>Stats endpoint returns the expected payload shape.</sub> | <sub>Confirms operational reporting remains stable.</sub> |
+| 1 | Embedding service | Embedding generation is deterministic and similarity prefers related text. | Provides stable behavior for scoring and retrieval. |
+| 2 | Extraction service | Entity and relation extraction detects expected names and links. | Confirms the structured ingest path works at a basic level. |
+| 3 | API health route | Health endpoint reflects repository connectivity behavior. | Prevents drift between the API contract and repository usage. |
+| 4 | API stats route | Stats endpoint returns the expected payload shape. | Confirms operational reporting remains stable. |
 
 The table above documents what is currently tested. Its purpose is to help readers distinguish between guaranteed behavior and architectural intent that still needs more end-to-end validation.
 
@@ -464,11 +455,11 @@ This section is important because strong documentation should explain limitation
 
 | # | Constraint | Current Behavior | Why It Was Acceptable For This Prototype | Likely Next Upgrade |
 | --- | --- | --- | --- | --- |
-| <sub>1</sub> | <sub>Embedding quality</sub> | <sub>Uses deterministic hash embeddings instead of a learned model.</sub> | <sub>Removes external dependencies and keeps tests reproducible.</sub> | <sub>Swap in a stronger embedding provider behind the same interface.</sub> |
-| <sub>2</sub> | <sub>Entity extraction</sub> | <sub>Uses regex and heuristics.</sub> | <sub>Makes the architecture easy to inspect and run locally.</sub> | <sub>Add a stronger NER and relation extraction pipeline.</sub> |
-| <sub>3</sub> | <sub>Ontology depth</sub> | <sub>Uses POLE+O top-level types only.</sub> | <sub>Keeps resolution and storage simple.</sub> | <sub>Extend labels and relation taxonomies.</sub> |
-| <sub>4</sub> | <sub>Duplicate review merge</sub> | <sub>Confirms aliases and longer descriptions but does not fully consolidate all graph structure.</sub> | <sub>Enough to demonstrate the review pathway without large migration logic.</sub> | <sub>Add canonicalization and edge rewiring logic.</sub> |
-| <sub>5</sub> | <sub>Source persistence</sub> | <sub>`source` is accepted on ingest but not yet stored.</sub> | <sub>Keeps the first prototype focused on identity and retrieval.</sub> | <sub>Persist source provenance on messages or evidence edges.</sub> |
+| 1 | Embedding quality | Uses deterministic hash embeddings instead of a learned model. | Removes external dependencies and keeps tests reproducible. | Swap in a stronger embedding provider behind the same interface. |
+| 2 | Entity extraction | Uses regex and heuristics. | Makes the architecture easy to inspect and run locally. | Add a stronger NER and relation extraction pipeline. |
+| 3 | Ontology depth | Uses POLE+O top-level types only. | Keeps resolution and storage simple. | Extend labels and relation taxonomies. |
+| 4 | Duplicate review merge | Confirms aliases and longer descriptions but does not fully consolidate all graph structure. | Enough to demonstrate the review pathway without large migration logic. | Add canonicalization and edge rewiring logic. |
+| 5 | Source persistence | `source` is accepted on ingest but not yet stored. | Keeps the first prototype focused on identity and retrieval. | Persist source provenance on messages or evidence edges. |
 
 The table above is the limitations register. Its purpose is to help readers evaluate the repository honestly and understand which parts are scaffolding versus core architectural commitments.
 
