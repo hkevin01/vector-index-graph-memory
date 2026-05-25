@@ -1,8 +1,16 @@
 # Vector Index Graph Memory
 
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/api-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Neo4j 5.x](https://img.shields.io/badge/graph-Neo4j%205.x-4581C3?logo=neo4j&logoColor=white)](https://neo4j.com/)
+[![Tests passing](https://img.shields.io/badge/tests-passing-2EA043)](#testing-and-validation)
+[![Architecture doc](https://img.shields.io/badge/docs-architecture-1F6FEB)](docs/architecture.md)
+
 This project is a graph-native memory prototype that addresses one of the main weaknesses of a flat vector index: semantic similarity is useful for recall, but it is not a reliable definition of identity. The codebase combines FastAPI, Neo4j 5 vector indexes, a deterministic local embedding service, lightweight entity extraction, and a conservative resolution gate so that memory retrieval stays useful without collapsing unrelated entities into the same record.
 
 The README is intentionally detailed because this repository is easier to evaluate when the design tradeoffs are explicit. If you are comparing this prototype with a vector database, a relational schema, or a heavier knowledge graph stack, the sections below explain what each layer does, why it exists, and what compromises were chosen in this implementation.
+
+The architecture material in this README is mirrored by the companion document at [docs/architecture.md](docs/architecture.md). The README gives the broader project narrative, while the doc keeps a tighter architecture-only reference so both audiences can follow the same model without duplicating conflicting explanations.
 
 > [!IMPORTANT]
 > This is a prototype focused on memory architecture, not a production-ready agent platform. The extraction pipeline is intentionally lightweight, the embedding model is deterministic and local, and the graph writes are designed to demonstrate identity-preserving memory behavior with minimal external dependencies.
@@ -16,16 +24,17 @@ This section is important because the README is deliberately long and is meant t
 3. [Why A Graph Was Chosen](#why-a-graph-was-chosen)
 4. [Tech Stack And Why It Was Chosen](#tech-stack-and-why-it-was-chosen)
 5. [Architecture Overview](#architecture-overview)
-6. [Memory Tiers](#memory-tiers)
-7. [Identity Resolution Strategy](#identity-resolution-strategy)
-8. [Retrieval Strategy](#retrieval-strategy)
-9. [Repository Structure](#repository-structure)
-10. [Quick Start](#quick-start)
-11. [Configuration](#configuration)
-12. [API Surface](#api-surface)
-13. [Example Workflows](#example-workflows)
-14. [Testing And Validation](#testing-and-validation)
-15. [Current Constraints And Tradeoffs](#current-constraints-and-tradeoffs)
+6. [Generated API Response Examples](#generated-api-response-examples)
+7. [Memory Tiers](#memory-tiers)
+8. [Identity Resolution Strategy](#identity-resolution-strategy)
+9. [Retrieval Strategy](#retrieval-strategy)
+10. [Repository Structure](#repository-structure)
+11. [Quick Start](#quick-start)
+12. [Configuration](#configuration)
+13. [API Surface](#api-surface)
+14. [Example Workflows](#example-workflows)
+15. [Testing And Validation](#testing-and-validation)
+16. [Current Constraints And Tradeoffs](#current-constraints-and-tradeoffs)
 
 ## Why This Project Exists
 
@@ -99,6 +108,12 @@ The table above explains the chosen stack in practical terms. It is useful becau
 
 This section is important because the value of the project comes from how the pieces interact, not from any one component in isolation. The diagram below shows the main control flow from incoming text to graph persistence and context retrieval.
 
+If Mermaid does not render in your viewer, the static fallback image below shows the same control flow and memory-tier layout. The architecture reference in [docs/architecture.md](docs/architecture.md) reuses the same SVG so the visual model stays aligned across both documents.
+
+![Static architecture overview](docs/architecture-overview.svg)
+
+The SVG above is the non-Mermaid fallback. Its purpose is to preserve the same architecture explanation when GitHub rendering is unavailable, when Mermaid is disabled, or when the file is viewed in a plain Markdown client.
+
 ```mermaid
 flowchart TD
     A[Client] --> B[FastAPI Routes]
@@ -151,6 +166,105 @@ sequenceDiagram
 ```
 
 The sequence diagram above shows why the architecture is split into services instead of keeping everything in the route layer. It makes it easier to reason about which code decides, which code persists, and which code only transforms data.
+
+See the architecture companion for the same diagram set in a shorter reference format: [docs/architecture.md](docs/architecture.md#system-overview).
+
+## Generated API Response Examples
+
+This section is important because route descriptions alone do not show what the service returns in practice. The examples below were generated from the actual Pydantic response models in the codebase, so they match the current response shapes instead of being hand-written approximations.
+
+### Health response example
+
+```json
+{
+    "status": "ok",
+    "neo4j": "connected"
+}
+```
+
+This response shows the smallest operational contract in the API. Its purpose is to make it obvious that health reporting distinguishes overall service state from database reachability.
+
+### Stats response example
+
+```json
+{
+    "conversations": 4,
+    "messages": 18,
+    "entities": 9,
+    "traces": 6,
+    "pending_duplicates": 1,
+    "checked_at": "2026-05-25T12:00:00Z"
+}
+```
+
+This response demonstrates the shape of the operational summary endpoint. It is useful because it shows exactly which counters the graph repository exposes for quick observability.
+
+### Document ingest response example
+
+```json
+{
+    "message_id": "9ca7c7b5-8a96-4f81-a5ff-0e1d5b991c2e",
+    "entity_count": 3,
+    "relation_count": 2,
+    "resolutions": [
+        {
+            "action": "create",
+            "confidence": 0.0,
+            "matched_entity_id": null,
+            "matched_name": null,
+            "reason": "No same-type candidates exist yet."
+        },
+        {
+            "action": "pending",
+            "confidence": 0.89,
+            "matched_entity_id": "entity:claude-code",
+            "matched_name": "Claude Code",
+            "reason": "exact=0.00, fuzzy=0.91, semantic=0.87"
+        }
+    ]
+}
+```
+
+This response shows why ingest is more than a write acknowledgment. Its purpose is to expose how much structure was extracted and how the resolution gate classified the candidates.
+
+### Chat context response example
+
+```json
+{
+    "query": "What do we know about Claude Code?",
+    "session_id": "demo",
+    "message_hits": [
+        "Anthropic developed Claude Code.",
+        "Claude Code competes with Codex."
+    ],
+    "entities": [
+        {
+            "id": "entity:claude-code",
+            "name": "Claude Code",
+            "entity_type": "Object",
+            "score": 0.97,
+            "related_names": [
+                "Anthropic",
+                "Codex"
+            ]
+        },
+        {
+            "id": "entity:anthropic",
+            "name": "Anthropic",
+            "entity_type": "Organization",
+            "score": 0.88,
+            "related_names": [
+                "Claude Code"
+            ]
+        }
+    ],
+    "reasoning": [
+        "What do we know about Claude Code?"
+    ]
+}
+```
+
+This response makes the hybrid retrieval design concrete. It shows that the service returns message recall, entity recall, related graph context, and prior reasoning traces in a single payload rather than a flat list of text chunks.
 
 ## Memory Tiers
 
@@ -276,6 +390,8 @@ This section matters because architecture is easier to trust when the code layou
 | 7 | `docs/` | Supplemental architecture notes. | Keeps reference documentation separate from the main entry point. |
 
 The table above is a structure map. Its purpose is to help a new reader decide where to look next depending on whether they care about HTTP contracts, graph persistence, or scoring logic.
+
+The same component boundaries are summarized in [docs/architecture.md](docs/architecture.md#component-responsibilities) so the repository has one architecture story expressed in both the README and the focused reference doc.
 
 ## Quick Start
 
@@ -439,6 +555,8 @@ This section matters because a memory architecture can sound reasonable while st
 | 4 | API stats route | Stats endpoint returns the expected payload shape. | Confirms operational reporting remains stable. |
 
 The table above documents what is currently tested. Its purpose is to help readers distinguish between guaranteed behavior and architectural intent that still needs more end-to-end validation.
+
+The generated response examples earlier in this README were produced from the response models used by these tests and routes, which keeps the documentation synchronized with the current contract instead of relying on manually formatted sample payloads.
 
 Run the test suite with:
 

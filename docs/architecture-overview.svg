@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="880" viewBox="0 0 1280 880" role="img" aria-labelledby="title desc">
+  <title id="title">Vector Index Graph Memory Architecture Overview</title>
+  <desc id="desc">Static architecture overview showing API routes, orchestration services, and Neo4j-backed memory tiers for environments where Mermaid does not render.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f7fafc"/>
+      <stop offset="100%" stop-color="#edf2f7"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f8fafc"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font: 700 34px 'Segoe UI', Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 16px 'Segoe UI', Arial, sans-serif; fill: #334155; }
+      .panel { fill: url(#panel); stroke: #cbd5e1; stroke-width: 2; rx: 26; }
+      .panel-title { font: 700 24px 'Segoe UI', Arial, sans-serif; fill: #0f172a; }
+      .panel-copy { font: 500 14px 'Segoe UI', Arial, sans-serif; fill: #475569; }
+      .box { fill: #ffffff; stroke: #94a3b8; stroke-width: 2; rx: 18; }
+      .box-title { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #0f172a; }
+      .box-copy { font: 500 13px 'Segoe UI', Arial, sans-serif; fill: #475569; }
+      .label { font: 700 13px 'Segoe UI', Arial, sans-serif; fill: #1d4ed8; letter-spacing: 0.08em; }
+      .arrow { stroke: #475569; stroke-width: 3; fill: none; marker-end: url(#arrow); }
+      .tier-line { stroke: #cbd5e1; stroke-width: 1.5; stroke-dasharray: 6 6; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="880" fill="url(#bg)"/>
+
+  <text x="70" y="80" class="title">Vector Index Graph Memory</text>
+  <text x="70" y="112" class="subtitle">Static SVG fallback for README and architecture documentation when Mermaid rendering is unavailable.</text>
+
+  <rect x="60" y="160" width="260" height="540" class="panel"/>
+  <text x="90" y="205" class="panel-title">Interface Layer</text>
+  <text x="90" y="232" class="panel-copy">FastAPI routes expose ingest, chat, review, health, and stats operations.</text>
+  <text x="90" y="270" class="label">ENTRY POINTS</text>
+
+  <rect x="90" y="295" width="200" height="92" class="box"/>
+  <text x="110" y="328" class="box-title">POST /api/documents</text>
+  <text x="110" y="350" class="box-copy">Ingest note, extract entities,</text>
+  <text x="110" y="368" class="box-copy">resolve duplicates, persist graph.</text>
+
+  <rect x="90" y="410" width="200" height="92" class="box"/>
+  <text x="110" y="443" class="box-title">POST /api/chat</text>
+  <text x="110" y="465" class="box-copy">Store message, retrieve hybrid</text>
+  <text x="110" y="483" class="box-copy">context, add reasoning trace.</text>
+
+  <rect x="90" y="525" width="200" height="72" class="box"/>
+  <text x="110" y="558" class="box-title">POST /api/duplicates/review</text>
+  <text x="110" y="580" class="box-copy">Confirm or reject pending SAME_AS.</text>
+
+  <rect x="90" y="620" width="200" height="52" class="box"/>
+  <text x="110" y="652" class="box-title">GET /api/health and /api/stats</text>
+
+  <rect x="370" y="160" width="520" height="540" class="panel"/>
+  <text x="400" y="205" class="panel-title">Application Services</text>
+  <text x="400" y="232" class="panel-copy">MemoryService orchestrates deterministic embeddings, extraction, resolution, and graph persistence.</text>
+  <text x="400" y="270" class="label">ORCHESTRATION</text>
+
+  <rect x="400" y="300" width="220" height="96" class="box"/>
+  <text x="420" y="334" class="box-title">MemoryService</text>
+  <text x="420" y="356" class="box-copy">Coordinates ingest and chat flows.</text>
+  <text x="420" y="374" class="box-copy">Ensures schema before writes.</text>
+
+  <rect x="650" y="300" width="210" height="96" class="box"/>
+  <text x="670" y="334" class="box-title">HashEmbeddingService</text>
+  <text x="670" y="356" class="box-copy">Creates deterministic local vectors</text>
+  <text x="670" y="374" class="box-copy">without external API calls.</text>
+
+  <rect x="400" y="435" width="220" height="96" class="box"/>
+  <text x="420" y="469" class="box-title">ExtractionService</text>
+  <text x="420" y="491" class="box-copy">Uses regex and heuristics to derive</text>
+  <text x="420" y="509" class="box-copy">POLE+O entities and relations.</text>
+
+  <rect x="650" y="435" width="210" height="96" class="box"/>
+  <text x="670" y="469" class="box-title">ResolutionService</text>
+  <text x="670" y="491" class="box-copy">Exact, fuzzy, and semantic scoring.</text>
+  <text x="670" y="509" class="box-copy">Merge, pending, or create decision.</text>
+
+  <rect x="400" y="570" width="460" height="90" class="box"/>
+  <text x="420" y="603" class="box-title">Resolution Gate</text>
+  <text x="420" y="625" class="box-copy">score &gt;= 0.95 - auto-merge | 0.85 to 0.95 - pending SAME_AS | score &lt; 0.85 - new node</text>
+
+  <rect x="940" y="160" width="280" height="640" class="panel"/>
+  <text x="970" y="205" class="panel-title">Neo4j Graph Memory</text>
+  <text x="970" y="232" class="panel-copy">One graph stores identity, embeddings, relationships, and provenance together.</text>
+  <text x="970" y="270" class="label">THREE MEMORY TIERS</text>
+
+  <line x1="960" y1="405" x2="1200" y2="405" class="tier-line"/>
+  <line x1="960" y1="590" x2="1200" y2="590" class="tier-line"/>
+
+  <rect x="970" y="295" width="220" height="90" class="box"/>
+  <text x="990" y="328" class="box-title">Short-term Memory</text>
+  <text x="990" y="350" class="box-copy">Conversation and Message nodes</text>
+  <text x="990" y="368" class="box-copy">linked with HAS_MESSAGE and NEXT.</text>
+
+  <rect x="970" y="430" width="220" height="130" class="box"/>
+  <text x="990" y="463" class="box-title">Long-term Memory</text>
+  <text x="990" y="485" class="box-copy">Entity nodes store canonical name,</text>
+  <text x="990" y="503" class="box-copy">aliases, type, embedding, and</text>
+  <text x="990" y="521" class="box-copy">RELATED_TO or SAME_AS edges.</text>
+
+  <rect x="970" y="615" width="220" height="120" class="box"/>
+  <text x="990" y="648" class="box-title">Reasoning Memory</text>
+  <text x="990" y="670" class="box-copy">ReasoningTrace and ReasoningStep</text>
+  <text x="990" y="688" class="box-copy">record query provenance and</text>
+  <text x="990" y="706" class="box-copy">touched entities.</text>
+
+  <path d="M 290 342 C 335 342, 345 342, 400 342" class="arrow"/>
+  <path d="M 620 348 C 635 348, 635 348, 650 348" class="arrow"/>
+  <path d="M 620 480 C 635 480, 635 480, 650 480" class="arrow"/>
+  <path d="M 510 396 C 510 416, 510 416, 510 435" class="arrow"/>
+  <path d="M 755 396 C 755 416, 755 416, 755 435" class="arrow"/>
+  <path d="M 630 530 C 630 548, 630 548, 630 570" class="arrow"/>
+  <path d="M 860 348 C 900 348, 900 340, 970 340" class="arrow"/>
+  <path d="M 860 480 C 900 480, 900 495, 970 495" class="arrow"/>
+  <path d="M 860 615 C 900 615, 900 675, 970 675" class="arrow"/>
+
+  <text x="70" y="790" class="subtitle">Key idea: vector similarity is a retrieval signal, while stable identity and provenance live in the graph.</text>
+</svg>
