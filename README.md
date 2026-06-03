@@ -147,6 +147,163 @@ The classic failure mode looks like this: an agent hears "Sam Altman leads OpenA
 
 In this repository, identity lives in the graph and similarity remains a signal. That distinction is the central design choice. It makes the system more conservative than a pure semantic search stack, but it also makes it safer for agent memory where stable references matter over time.
 
+---
+
+### What Does "Identity Lives In The Graph" Mean?
+
+The **graph** in this sentence is a [property graph](https://neo4j.com/developer/graph-database/) - a data structure made of **nodes** (records with properties) and **edges** (directed, typed connections between nodes). This is not a mathematical graph in the abstract algebra sense, and it is not a neural network computation graph. It is a database model, the same kind used by Neo4j, Amazon Neptune, and similar graph databases.
+
+In this system, every named entity that the system has ever seen becomes a **node** in that graph. A node looks like this in Neo4j's internal representation:
+
+```text
+Node {
+  id:          "entity:anthropic"
+  name:        "Anthropic"
+  entity_type: "Organization"
+  aliases:     ["Anthropic PBC", "Anthropic AI"]
+  description: "AI safety company that develops Claude"
+  embedding:   [0.031, -0.012, 0.044, ..., 0.019]  -- 256 floats
+}
+```
+
+When a relationship is extracted from text - for example "Anthropic developed Claude Code" - the system creates an **edge** between the Anthropic node and the Claude Code node:
+
+```text
+(Anthropic) --[RELATED_TO {predicate: "developed"}]--> (Claude Code)
+```
+
+"Identity lives in the graph" means that **the node is the identity**. The Anthropic node is the single canonical record for Anthropic. It is not a chunk of text, not a row in a table, and not a vector. It is a named, addressable object in the graph with stable edges pointing to related objects. When you later ingest "Anthropic released a new model", the system does not create a second Anthropic node - it finds the existing one by running the resolution gate and merges new information into it. The identity is preserved.
+
+Compare this to a flat vector store: if you embed and store "Anthropic, an AI safety company" and then later store "Anthropic PBC develops Claude", you now have two separate vectors. There is no "Anthropic node" - there are two anonymous chunks that happen to be similar. Future searches may return both, or only one, or neither, depending on the query. The identity is not preserved anywhere.
+
+---
+
+### What Does "Similarity Remains A Signal" Mean?
+
+A **signal** in this context is a **scalar number between 0.0 and 1.0** - nothing more. It is not a matrix, not a gradient, and not a vector. It is a single floating-point score that measures how alike two things are.
+
+When a new entity candidate arrives - say, a mention of "Anthropic AI" extracted from a new document - the system computes three signals against each existing Organization node:
+
+| # | Signal Name | How It Is Computed | Example Output | Data Type |
+| --- | --- | --- | --- | --- |
+| 1 | Exact match | Case-insensitive string comparison of name and aliases | 1.0 if "anthropic ai" is in aliases, else 0.0 | float, range 0-1 |
+| 2 | Fuzzy match | `difflib.SequenceMatcher(None, a, b).ratio()` | 0.87 for "Anthropic AI" vs "Anthropic" | float, range 0-1 |
+| 3 | Semantic match | Cosine similarity between two 256-dimensional vectors | 0.91 for closely related descriptions | float, range 0-1 |
+
+Those three numbers are combined into one final score using a weighted formula:
+
+$$
+score = \max\!\bigl(exact,\ 0.45 \times fuzzy + 0.55 \times semantic\bigr)
+$$
+
+The result is a single number like `0.89`. That number is the **signal**. It says: "this candidate and this existing node are probably about the same thing, with confidence 0.89."
+
+The crucial point is what happens next. The signal does **not** automatically rewrite the graph. Instead it is fed into a **decision gate** with two thresholds:
+
+```text
+score >= 0.95  ->  merge  (update the existing node, absorb new aliases)
+0.85 <= score < 0.95  ->  pending  (create new node, flag SAME_AS for human review)
+score < 0.85  ->  create  (treat as genuinely new entity)
+```
+
+The signal informs the decision. The graph owns the decision. The graph is never automatically rewritten just because two things scored high similarity - the threshold must be met, and for the ambiguous middle band, a human must confirm. That is the separation the phrase captures.
+
+---
+
+### Does This System Have A Vanishing Gradient Problem?
+
+**No - this system has no gradients at all.** The vanishing gradient problem is a training-time pathology in deep neural networks. It occurs when backpropagation computes gradients that shrink exponentially as they flow backward through many layers, causing early layers to receive near-zero gradient updates and stop learning. It has nothing to do with this project.
+
+This system does **not train any neural network**. There is no backpropagation, no loss function, no parameter update step, and no learning loop. The components of this system are:
+
+- **Hash-based embedding** - a deterministic mathematical function that converts text into a vector using SHA-256 hash arithmetic. No weights, no training, no gradients.
+- **Cosine similarity** - a geometric dot product between two unit vectors. No gradients.
+- **String matching** - `difflib.SequenceMatcher`. No gradients.
+- **Threshold comparisons** - if/else logic on scalar scores. No gradients.
+- **Neo4j Cypher writes** - database operations. No gradients.
+
+The only place "gradient" appears is in the math of cosine similarity, which requires the vectors to be normalized. That is not a training operation - it is a normalization step on fixed vectors.
+
+If you swap the `HashEmbeddingService` for a pre-trained sentence transformer model like `all-MiniLM-L6-v2`, the **inference** call to that model also has no gradients (inference mode, not training mode). The pre-trained model has already solved its vanishing gradient problem during its own training process before it was packaged. You use it as a frozen function, not a trainable layer.
+
+> [!NOTE]
+> The vanishing gradient problem would only be relevant if you were trying to fine-tune the embedding model end-to-end with a signal derived from the resolution decisions. That is a valid research direction (training an embedding model to optimize entity resolution quality), but it is not what this prototype does. Here the embedding model is fixed and the resolution logic is rule-based.
+
+---
+
+### What Does A Signal Look Like Concretely?
+
+Here is the complete data flow for a single resolution decision, showing every intermediate value:
+
+**Input:** New candidate extracted from text - `"Anthropic AI"`, type `Organization`
+
+**Step 1 - Retrieve existing candidates from Neo4j:**
+
+```python
+existing_entities = [
+    ExistingEntity(
+        id="entity:anthropic",
+        name="Anthropic",
+        aliases=["Anthropic PBC"],
+        embedding=[0.031, -0.012, 0.044, ...]  # 256 floats
+    )
+]
+```
+
+**Step 2 - Embed the candidate:**
+
+```python
+candidate_embedding = hash_embed("Organization Anthropic AI an AI safety company")
+# Returns a list of 256 floats, e.g.:
+# [0.028, -0.009, 0.041, 0.003, -0.017, ...]
+```
+
+The embedding vector is **not a matrix**. It is a one-dimensional list of 256 floating-point numbers. Each number is derived deterministically from the SHA-256 hash of the input text - not from any learned weights. Two texts that share character patterns will tend to share some hash-derived float values, which is why the similarity measure has any signal at all. It is a crude approximation of semantic similarity, not a learned representation.
+
+**Step 3 - Compute three scalar signals:**
+
+```python
+exact  = 1.0   # "anthropic ai" matches alias "Anthropic AI" case-insensitively? Yes -> 1.0
+                # If no match -> 0.0
+
+fuzzy  = SequenceMatcher(None, "anthropic ai", "anthropic").ratio()
+       = 0.857  # ratio of matching characters to total characters
+
+semantic = cosine_similarity(candidate_embedding, existing_embedding)
+         = sum(a * b for a, b in zip(cand_emb, exist_emb))  # dot product of unit vectors
+         = 0.91  # a scalar, not a matrix or vector
+```
+
+**Step 4 - Combine into one score:**
+
+```python
+score = max(exact, 0.45 * fuzzy + 0.55 * semantic)
+      = max(1.0,   0.45 * 0.857 + 0.55 * 0.91)
+      = max(1.0,   0.386 + 0.501)
+      = max(1.0,   0.887)
+      = 1.0
+```
+
+**Step 5 - Apply decision gate:**
+
+```python
+# score 1.0 >= AUTO_MERGE_THRESHOLD 0.95
+decision = ResolutionDecision(
+    action="merge",
+    confidence=1.0,
+    matched_entity_id="entity:anthropic",
+    matched_name="Anthropic",
+    reason="exact=1.00, fuzzy=0.86, semantic=0.91"
+)
+```
+
+The signal `1.0` told the gate to merge. The graph now absorbs "Anthropic AI" as a new alias on the existing Anthropic node. No new node is created. Identity is preserved.
+
+> [!TIP]
+> The `reason` string in every `ResolutionDecision` is the human-readable version of these three scalar signals. When you see `exact=0.00, fuzzy=0.91, semantic=0.87` in the API response, you are reading the three numbers described above. They are not hidden inside a black-box model - they are explicit, inspectable, and auditable.
+
+---
+
 | # | Decision Area | Chosen Approach | Typical Alternative | Why This Helps |
 | --- | --- | --- | --- | --- |
 | 1 | Primary memory store | Neo4j graph with vector indexes | Standalone vector database | Keeps identity, relationships, and embeddings on the same node set |
